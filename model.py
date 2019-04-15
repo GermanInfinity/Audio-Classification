@@ -10,8 +10,28 @@ from keras.utils import to_categorical
 from sklearn.utils.class_weight import compute_class_weight
 from tqdm import tqdm
 from python_speech_features import mfcc
+import pickle#in python let you store binary files, sttore data
+from keras.callbacks import ModelCheckpoint#saving models from keras to load up later
+from cfg import Config#contain config class 
 
+
+def check_data():
+    if os.path.isfile(config.p_path):
+        print('Loading existing data for {} model'.format(config.mode))
+        with open(config.p_path, 'rb') as handle:
+            tmp = pickle.load(handle)
+            return tmp
+        
+    else:
+        return None
+    
+    
+#Generates data to be served up to the model 
 def build_rand_feat():
+    tmp = check_data()
+    if tmp:
+        return tmp.data[0], tmp.data[1]
+    
     X = [] # to be converted to numpy array ;ater
     y = []
     #in order to figure out scalings for normalizing
@@ -25,13 +45,15 @@ def build_rand_feat():
         rand_index = np.random.randint(0, wav.shape[0]-config.step)
         sample = wav[rand_index:rand_index+config.step]
         X_sample = mfcc(sample, rate, numcep=config.nfeat, 
-                                    nfilt=config.nfilt, nfft=config.nfft).T
+                                    nfilt=config.nfilt, nfft=config.nfft)
         _min = min(np.amin(X_sample), _min)
         _max = max(np.amax(X_sample), _max)
         #might check here to understand shape of data
-        X.append(X_sample if config.mode == 'conv' else X_sample.T)
+        X.append(X_sample)
         y.append(classes.index(label))
         #Encoding names of instruments as index for NN
+    config.min = _min
+    config.max = _max
     X, y = np.array(X), np.array(y)
     X = (X - _min) / (_max - _min)
     if config.mode == 'conv':
@@ -39,6 +61,12 @@ def build_rand_feat():
     elif config.mode == 'time':
         X = X.reshape(X.shape[0], X.shape[1], X.shape[2])
     y = to_categorical(y, num_classes=10)# need to onehotencode linear variables of Y 
+    #Store in a tuple 
+    config.data = (X, y)
+    
+    #Save in a pickle
+    with open(config.p_path, 'wb') as handle:
+        pickle.dump (config, handle, protocol=2)
     return X, y
         
 
@@ -88,15 +116,6 @@ def get_recurrent_model(): #Meant to model features that change over time
 #Looking at row of pixels for something to remember to carry on to next row of 
 #pixels. Scan picture try to analyse based on what you're previously seen.
     
-    
-class Config: #Allows us switch between CNN and RNN
-    def __init__(self, mode='conv', nfilt=26, nfeat=13, nfft=512, rate=16000):
-        self.mode = mode
-        self.nfilt = nfilt
-        self.nfeat = nfeat
-        self.nfft = nfft
-        self.ratte = rate
-        self.step = int(rate/10)
         
 # Creating pychart for class distribution 
 df = pd.read_csv('instruments.csv')
@@ -128,7 +147,7 @@ ax.pie(class_dist, labels=class_dist.index, autopct='%1.1f%%',
 ax.axis('equal')
 plt.show()
 
-config = Config(mode='time')
+config = Config(mode='conv')
 
 if config.mode == 'conv':
     X, y = build_rand_feat()
@@ -149,6 +168,15 @@ class_weight = compute_class_weight('balanced',
                                     np.unique(y_flat),
                                     y_flat)
 
+checkpoint = ModelCheckpoint(config.model_path, monitor='val_acc', verbose=1,
+                             mode='max', save_best_only=True, save_weights_only=False,
+                             period=1)
+#When you save models in keras, it looks for a weight file. Now store 
+#model architecutre and weights in one .model file
+
 model.fit(X, y, epochs=10, batch_size=32,
-          shuffle=True, class_weight=class_weight)
-    
+          shuffle=True, class_weight=class_weight, validation_split=0.1, 
+          callbacks=[checkpoint])
+#validation split take bottom 10% to validate it, must shuffle data before 
+#validating. 
+model.save(config.model_path)
