@@ -66,8 +66,30 @@ def get_conv_model():
                   optimizer='adam',
                   metrics=['acc'])
     return model
+
+
+def get_recurrent_model(): #Meant to model features that change over time
+    #shape of data for RNN is (n, time, feat)
+    model = Sequential()
+    model.add(LSTM(128, return_sequences=True, input_shape=input_shape))
+    model.add(LSTM(128, return_sequences=True))
+    model.add(Dropout(0.5))
+    model.add(TimeDistributed(Dense(64, activation='relu')))
+    model.add(TimeDistributed(Dense(32, activation='relu')))
+    model.add(TimeDistributed(Dense(16, activation='relu')))
+    model.add(TimeDistributed(Dense(8, activation='relu')))
+    model.add(Flatten())
+    model.add(Dense(10, activation='softmax'))
+    model.summary()
+    model.compile(loss='categorical_crossentropy',
+                  optimizer='adam',
+                  metrics=['acc'])
+    return model
+#Looking at row of pixels for something to remember to carry on to next row of 
+#pixels. Scan picture try to analyse based on what you're previously seen.
     
-class Config: 
+    
+class Config: #Allows us switch between CNN and RNN
     def __init__(self, mode='conv', nfilt=26, nfeat=13, nfft=512, rate=16000):
         self.mode = mode
         self.nfilt = nfilt
@@ -106,7 +128,8 @@ ax.pie(class_dist, labels=class_dist.index, autopct='%1.1f%%',
 ax.axis('equal')
 plt.show()
 
-config = Config(mode='conv')
+config = Config(mode='time')
+
 if config.mode == 'conv':
     X, y = build_rand_feat()
     #mapping back to classes from one hot encoding
@@ -119,7 +142,7 @@ elif config.mode == 'time':
                              # to be pushed through models
     #mapping back to classes from one hot encoding
     y_flat = np.argmax(y, axis=1)
-    input_shape = (X.shapep[1], X.shape[2])
+    input_shape = (X.shape[1], X.shape[2])
     model = get_recurrent_model()
     
 class_weight = compute_class_weight('balanced',
