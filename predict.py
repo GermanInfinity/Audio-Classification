@@ -47,18 +47,19 @@ def build_predictions(audio_dir):
         
     return y_true, y_pred, fn_prob
         
-df = pd.read_csv('instruments.csv')
+df = pd.read_csv('numbers.csv')
 classes = list(np.unique(df.label))
 fn2class = dict(zip(df.fname, df.label))
-p_path = os.path.join('pickles', 'conv.p')
+p_path = os.path.join('pickles', 'time.p')
 
 with open(p_path, 'rb') as handle: 
     config = pickle.load(handle)
     
 model = load_model(config.model_path)
 
-y_true, y_pred, fn_prob = build_predictions('new')
-acc_score = accuracy_score(y_true=y_true, y_pred=y_pred)
+print (config.mode)
+y_true, y_pred, fn_prob = build_predictions('clean')
+rnn_acc_score = accuracy_score(y_true=y_true, y_pred=y_pred)
 y_probs = []
 for i, row in df.iterrows():
     y_prob = fn_prob[row.fname]
@@ -69,4 +70,4 @@ for i, row in df.iterrows():
 y_pred = [classes[np.argmax(y)] for y in y_probs]
 df['y_pred'] = y_pred
 
-df.to_csv('predictions.csv', index=False)
+df.to_csv('rnn_num_predictions.csv', index=False)

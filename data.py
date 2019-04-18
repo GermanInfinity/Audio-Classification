@@ -8,7 +8,7 @@ from python_speech_features import mfcc, logfbank
 import librosa
 import my_audio_plot
 
-df = pd.read_csv('instruments.csv') #30 .wav files for each instrument
+df = pd.read_csv('numbers.csv') #30 .wav files for each instrument, numbers
 df.set_index('fname', inplace=True)
 
 def calc_fft(y, rate):
@@ -35,9 +35,9 @@ def envelope(y, rate, threshold):
 #length: ./wav_file_signal / ./wav_file_rate
 #Added length of .wav file as column to dataframe
 for f in df.index:
-    rate, signal = wavfile.read('wavfiles/'+f)
-    df.at[f, 'length'] = signal.shape[0]/rate
-
+    rate, signal = wavfile.read('numWavfiles/'+f)
+    df.at[f, 'length'] = signal.shape[0]/rate #returns length of .wav
+#Appends length 
 
 #Make list of class -- instruments
 classes = list(np.unique(df.label))
@@ -66,7 +66,8 @@ sig = my_audio_plot.my_audio_plot()
     #Access .wav file in each class
 for c in classes: 
     wav_file = df[df.label == c].iloc[0, 0]
-    signal, rate = librosa.load('wavfiles/'+wav_file, sr=44100)
+    signal, rate = librosa.load('numWavfiles/'+wav_file, sr=44100)
+
     mask = envelope(signal, rate, 0.0005)
     signal = signal[mask]
     
@@ -83,7 +84,7 @@ sig.plot_signals(signals)
 plt.show()
 
 sig.plot_fft(fft)
-plt.show()a
+plt.show()
 
 sig.plot_fbank(fbank)
 plt.show()
@@ -99,8 +100,8 @@ plt.show()
 #Downsample audio -- put mask over audio
 # making audio clean for modelling
 #Generate clean audio files ready for modelling 
-if len(os.listdir('new')) == 0:
+if len(os.listdir('clean')) == 0:
     for f in tqdm(df.fname):
-        signal, rate = librosa.load('wavfiles/'+f, sr=16000)
+        signal, rate = librosa.load('numWavfiles/'+f, sr=16000)
         mask = envelope(signal, rate, 0.0005)
-        wavfile.write(filename='new/'+f, rate=rate, data=signal[mask])
+        wavfile.write(filename='clean/'+f, rate=rate, data=signal[mask])

@@ -40,7 +40,7 @@ def build_rand_feat():
     for _ in tqdm(range(n_samples)):
         rand_class = np.random.choice(class_dist.index, p=prob_dist)
         file = np.random.choice(df[df.label==rand_class].index)
-        rate, wav = wavfile.read('new/'+file)
+        rate, wav = wavfile.read('clean/'+file)
         label = df.at[file, 'label']
         rand_index = np.random.randint(0, wav.shape[0]-config.step)
         sample = wav[rand_index:rand_index+config.step]
@@ -118,11 +118,11 @@ def get_recurrent_model(): #Meant to model features that change over time
     
         
 # Creating pychart for class distribution 
-df = pd.read_csv('instruments.csv')
+df = pd.read_csv('numbers.csv')
 df.set_index('fname', inplace=True)
 
 for f in df.index:
-    rate, signal = wavfile.read('new/'+f)
+    rate, signal = wavfile.read('clean/'+f)
     df.at[f, 'length'] = signal.shape[0]/rate
 
 classes = list(np.unique(df.label))
@@ -147,7 +147,7 @@ ax.pie(class_dist, labels=class_dist.index, autopct='%1.1f%%',
 ax.axis('equal')
 plt.show()
 
-config = Config(mode='conv')
+config = Config(mode='time')
 
 if config.mode == 'conv':
     X, y = build_rand_feat()
@@ -163,6 +163,7 @@ elif config.mode == 'time':
     y_flat = np.argmax(y, axis=1)
     input_shape = (X.shape[1], X.shape[2])
     model = get_recurrent_model()
+    print ("Here")
     
 class_weight = compute_class_weight('balanced',
                                     np.unique(y_flat),
